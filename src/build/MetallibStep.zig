@@ -50,12 +50,14 @@ pub fn create(b: *std.Build, opts: Options) ?*MetallibStep {
         .ios => "11.0",
         else => unreachable,
     };
+    const metal = findXcodeTool(b, sdk, "metal");
+    const metallib = findXcodeTool(b, sdk, "metallib");
 
     const run_ir = RunStep.create(
         b,
         b.fmt("metal {s}", .{opts.name}),
     );
-    run_ir.addArgs(&.{ "/usr/bin/xcrun", "-sdk", sdk, "metal", "-o" });
+    run_ir.addArgs(&.{ metal, "-o" });
     const output_ir = run_ir.addOutputFileArg(b.fmt("{s}.ir", .{opts.name}));
     run_ir.addArgs(&.{"-c"});
     for (opts.sources) |source| run_ir.addFileArg(source);
@@ -70,7 +72,7 @@ pub fn create(b: *std.Build, opts: Options) ?*MetallibStep {
         b,
         b.fmt("metallib {s}", .{opts.name}),
     );
-    run_lib.addArgs(&.{ "/usr/bin/xcrun", "-sdk", sdk, "metallib", "-o" });
+    run_lib.addArgs(&.{ metallib, "-o" });
     const output_lib = run_lib.addOutputFileArg(b.fmt("{s}.metallib", .{opts.name}));
     run_lib.addFileArg(output_ir);
     run_lib.step.dependOn(&run_ir.step);
@@ -81,4 +83,13 @@ pub fn create(b: *std.Build, opts: Options) ?*MetallibStep {
     };
 
     return self;
+}
+
+fn findXcodeTool(b: *std.Build, sdk: []const u8, tool: []const u8) []const u8 {
+    const raw = b.run(&.{ "xcodebuild", "-find-executable", tool, "-sdk", sdk });
+    const path = std.mem.trim(u8, raw, " \t\r\n");
+    if (path.len == 0) {
+        std.debug.panic("xcodebuild did not return a path for {s} in SDK {s}", .{ tool, sdk });
+    }
+    return path;
 }
