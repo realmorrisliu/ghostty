@@ -624,10 +624,39 @@ pub fn init(
         break :command config.command;
     };
 
+    const external_pty_config: ?termio.ExternalPty.Config =
+        if (@hasDecl(@TypeOf(rt_surface.*), "externalPtyConfig"))
+            rt_surface.externalPtyConfig()
+        else
+            null;
+
     // Start our IO implementation
     // This separate block ({}) is important because our errdefers must
     // be scoped here to be valid.
-    {
+    io_init: {
+        if (external_pty_config) |external_cfg| {
+            var io_external_pty = try termio.ExternalPty.init(external_cfg);
+            errdefer io_external_pty.deinit();
+
+            // Initialize our IO mailbox
+            var io_mailbox = try termio.Mailbox.initSPSC(alloc);
+            errdefer io_mailbox.deinit(alloc);
+
+            try termio.Termio.init(&self.io, alloc, .{
+                .size = size,
+                .full_config = config,
+                .config = try termio.Termio.DerivedConfig.init(alloc, config),
+                .backend = .{ .external_pty = io_external_pty },
+                .mailbox = io_mailbox,
+                .renderer_state = &self.renderer_state,
+                .renderer_wakeup = render_thread.wakeup,
+                .renderer_mailbox = render_thread.mailbox,
+                .surface_mailbox = .{ .surface = self, .app = app_mailbox },
+            });
+
+            break :io_init;
+        }
+
         var env = rt_surface.defaultTermioEnv() catch |err| env: {
             // If an error occurs, we don't want to block surface startup.
             log.warn("error getting env map for surface err={}", .{err});
@@ -1313,6 +1342,7 @@ fn childExitedAbnormally(
     // Build up our command for the error message
     const command = try std.mem.join(alloc, " ", switch (self.io.backend) {
         .exec => |*exec| exec.subprocess.args,
+        .external_pty => &.{"external-pty"},
     });
     const runtime_str = try std.fmt.allocPrint(alloc, "{d} ms", .{info.runtime_ms});
 

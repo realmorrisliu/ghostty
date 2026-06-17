@@ -653,6 +653,11 @@ extension Ghostty {
         /// Context for surface creation
         var context: ghostty_surface_context_e = GHOSTTY_SURFACE_CONTEXT_WINDOW
 
+        /// External PTY fd pair supplied by the embedder. macOS only.
+        var externalPTYReadFD: Int32?
+        var externalPTYWriteFD: Int32?
+        var externalPTYCloseFDs: Bool = false
+
         init() {}
 
         init(from config: ghostty_surface_config_s) {
@@ -675,6 +680,13 @@ extension Ghostty {
                 }
             }
             self.context = config.context
+            if config.external_pty_read_fd >= 0 {
+                self.externalPTYReadFD = config.external_pty_read_fd
+            }
+            if config.external_pty_write_fd >= 0 {
+                self.externalPTYWriteFD = config.external_pty_write_fd
+            }
+            self.externalPTYCloseFDs = config.external_pty_close_fds
         }
 
         /// Provides a C-compatible ghostty configuration within a closure. The configuration
@@ -710,6 +722,12 @@ extension Ghostty {
 
             // Set context
             config.context = context
+
+            // Set external PTY attachment fds. The libghostty side validates
+            // that either both descriptors are set or neither is set.
+            config.external_pty_read_fd = externalPTYReadFD ?? -1
+            config.external_pty_write_fd = externalPTYWriteFD ?? -1
+            config.external_pty_close_fds = externalPTYCloseFDs
 
             // Use withCString to ensure strings remain valid for the duration of the closure
             return try workingDirectory.withCString { cWorkingDir in

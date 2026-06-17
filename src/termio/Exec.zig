@@ -1257,7 +1257,7 @@ const Subprocess = struct {
 /// fds and this is still much faster and lower overhead than any async
 /// mechanism.
 pub const ReadThread = struct {
-    fn threadMainPosix(fd: posix.fd_t, io: *termio.Termio, quit: posix.fd_t) void {
+    pub fn threadMainPosix(fd: posix.fd_t, io: *termio.Termio, quit: posix.fd_t) void {
         // Always close our end of the pipe when we exit.
         defer posix.close(quit);
 

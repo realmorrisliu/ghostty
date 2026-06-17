@@ -15,6 +15,7 @@ const input = @import("../input.zig");
 const internal_os = @import("../os/main.zig");
 const renderer = @import("../renderer.zig");
 const terminal = @import("../terminal/main.zig");
+const termio = @import("../termio.zig");
 const CoreApp = @import("../App.zig");
 const CoreInspector = @import("../inspector/main.zig").Inspector;
 const CoreSurface = @import("../Surface.zig");
@@ -416,6 +417,7 @@ pub const Surface = struct {
     size: apprt.SurfaceSize,
     cursor_pos: apprt.CursorPos,
     inspector: ?*Inspector = null,
+    external_pty: ?termio.ExternalPty.Config = null,
 
     /// The current title of the surface. The embedded apprt saves this so
     /// that getTitle works without the implementer needing to save it.
@@ -462,6 +464,13 @@ pub const Surface = struct {
 
         /// Context for the new surface
         context: apprt.surface.NewSurfaceContext = .window,
+
+        /// External PTY attachment. If either fd is set, both fds must be set.
+        /// This macOS-only embedded seam lets the host own the terminal child
+        /// process and lifecycle while Ghostty owns rendering/protocol IO.
+        external_pty_read_fd: c_int = -1,
+        external_pty_write_fd: c_int = -1,
+        external_pty_close_fds: bool = false,
     };
 
     pub fn init(self: *Surface, app: *App, opts: Options) !void {
@@ -476,6 +485,18 @@ pub const Surface = struct {
             },
             .size = .{ .width = 800, .height = 600 },
             .cursor_pos = .{ .x = -1, .y = -1 },
+            .external_pty = external_pty: {
+                const has_read_fd = opts.external_pty_read_fd >= 0;
+                const has_write_fd = opts.external_pty_write_fd >= 0;
+                if (has_read_fd != has_write_fd) return error.ExternalPtyInvalidFd;
+                if (!has_read_fd) break :external_pty null;
+
+                break :external_pty .{
+                    .read_fd = @intCast(opts.external_pty_read_fd),
+                    .write_fd = @intCast(opts.external_pty_write_fd),
+                    .close_fds = opts.external_pty_close_fds,
+                };
+            },
         };
 
         // Add ourselves to the list of surfaces on the app.
@@ -632,6 +653,10 @@ pub const Surface = struct {
 
     pub fn core(self: *Surface) *CoreSurface {
         return &self.core_surface;
+    }
+
+    pub fn externalPtyConfig(self: *const Surface) ?termio.ExternalPty.Config {
+        return self.external_pty;
     }
 
     pub fn rtApp(self: *const Surface) *App {
