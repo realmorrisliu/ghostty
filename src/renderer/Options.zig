@@ -20,5 +20,9 @@ surface_mailbox: apprt.surface.Mailbox,
 /// The apprt surface.
 rt_surface: *apprt.Surface,
 
+/// Initial macOS display id for vsync setup. Zero means use the default
+/// active-displays path.
+macos_display_id: u32 = 0,
+
 /// The renderer thread.
 thread: *renderer.Thread,

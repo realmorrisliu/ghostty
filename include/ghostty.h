@@ -477,6 +477,7 @@ typedef struct {
   const char* initial_input;
   bool wait_after_command;
   ghostty_surface_context_e context;
+  uint32_t initial_macos_display_id;
   int external_pty_read_fd;
   int external_pty_write_fd;
   bool external_pty_close_fds;

@@ -554,6 +554,10 @@ pub fn init(
         .size = size,
         .surface_mailbox = .{ .surface = self, .app = app_mailbox },
         .rt_surface = rt_surface,
+        .macos_display_id = if (@hasDecl(apprt.Surface, "initialMacOSDisplayID"))
+            rt_surface.initialMacOSDisplayID()
+        else
+            0,
         .thread = &self.renderer_thread,
     });
     errdefer renderer_impl.deinit();

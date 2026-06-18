@@ -418,6 +418,7 @@ pub const Surface = struct {
     cursor_pos: apprt.CursorPos,
     inspector: ?*Inspector = null,
     external_pty: ?termio.ExternalPty.Config = null,
+    initial_macos_display_id: u32 = 0,
 
     /// The current title of the surface. The embedded apprt saves this so
     /// that getTitle works without the implementer needing to save it.
@@ -465,6 +466,10 @@ pub const Surface = struct {
         /// Context for the new surface
         context: apprt.surface.NewSurfaceContext = .window,
 
+        /// Initial macOS display id for renderer vsync setup. If this is zero,
+        /// Ghostty falls back to the platform default display link path.
+        initial_macos_display_id: u32 = 0,
+
         /// External PTY attachment. If either fd is set, both fds must be set.
         /// This macOS-only embedded seam lets the host own the terminal child
         /// process and lifecycle while Ghostty owns rendering/protocol IO.
@@ -485,6 +490,7 @@ pub const Surface = struct {
             },
             .size = .{ .width = 800, .height = 600 },
             .cursor_pos = .{ .x = -1, .y = -1 },
+            .initial_macos_display_id = opts.initial_macos_display_id,
             .external_pty = external_pty: {
                 const has_read_fd = opts.external_pty_read_fd >= 0;
                 const has_write_fd = opts.external_pty_write_fd >= 0;
@@ -657,6 +663,10 @@ pub const Surface = struct {
 
     pub fn externalPtyConfig(self: *const Surface) ?termio.ExternalPty.Config {
         return self.external_pty;
+    }
+
+    pub fn initialMacOSDisplayID(self: *const Surface) u32 {
+        return self.initial_macos_display_id;
     }
 
     pub fn rtApp(self: *const Surface) *App {

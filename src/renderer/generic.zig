@@ -691,7 +691,10 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
 
             const display_link: ?DisplayLink = switch (builtin.os.tag) {
                 .macos => if (options.config.vsync)
-                    try macos.video.DisplayLink.createWithActiveCGDisplays()
+                    if (options.macos_display_id != 0)
+                        try macos.video.DisplayLink.createWithCGDisplay(options.macos_display_id)
+                    else
+                        try macos.video.DisplayLink.createWithActiveCGDisplays()
                 else
                     null,
                 else => null,

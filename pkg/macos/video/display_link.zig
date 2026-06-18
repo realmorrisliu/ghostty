@@ -18,6 +18,17 @@ pub const DisplayLink = opaque {
         return result orelse error.OutOfMemory;
     }
 
+    pub fn createWithCGDisplay(display_id: c.CGDirectDisplayID) Allocator.Error!*DisplayLink {
+        var result: ?*DisplayLink = null;
+        if (c.CVDisplayLinkCreateWithCGDisplay(
+            display_id,
+            @ptrCast(&result),
+        ) != c.kCVReturnSuccess)
+            return error.OutOfMemory;
+
+        return result orelse error.OutOfMemory;
+    }
+
     pub fn release(self: *DisplayLink) void {
         c.CVDisplayLinkRelease(@ptrCast(self));
     }
